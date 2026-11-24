@@ -1,6 +1,6 @@
 # Capstone Proposal: Spokewell Bike Repair
 
-Author: YOUR NAME
+Author: Nikita Lemeshenko
 
 ## The business
 
