@@ -1,3 +1,5 @@
+import pytest
+
 import database
 from tools import SpokewellTools
 
@@ -143,3 +145,52 @@ def test_check_request_reports_staff_decision(tmp_path):
 
     decided = tools.run("check_request", {"number": number}, history)
     assert "was rejected" in decided
+
+
+@pytest.mark.parametrize("arguments", [None, [], "R200", 7])
+def test_malformed_argument_container_is_refused(tmp_path, arguments):
+    tools = make_tools(tmp_path)
+    reply = tools.run("request_pickup_change", arguments, customer("R200 2026-12-01"))
+    assert "named values" in reply
+    assert database.waiting_requests(tools.db_file) == []
+
+
+@pytest.mark.parametrize("value", [None, True, [], {"id": "R200"}])
+def test_invalid_argument_value_is_treated_as_missing(tmp_path, value):
+    tools = make_tools(tmp_path)
+    reply = tools.run("look_up_repair", {"ticket_id": value}, customer("R200"))
+    assert "ticket ID is missing" in reply
+
+
+def test_part_with_zero_stock_is_reported(tmp_path):
+    tools = make_tools(tmp_path)
+    reply = tools.run("check_part", {"name": "brake pads"}, customer("brake pads"))
+    assert "0 of the brake pads" in reply
+    assert "$15.00" in reply
+
+
+def test_repeated_tool_change_does_not_duplicate_request(tmp_path):
+    tools = make_tools(tmp_path)
+    arguments = {"ticket_id": "R200", "new_date": "2026-12-01"}
+    history = customer("Move pickup for R200 to 2026-12-01")
+    first = tools.run("request_pickup_change", arguments, history)
+    second = tools.run("request_pickup_change", arguments, history)
+    assert first == second
+    assert len(database.waiting_requests(tools.db_file)) == 1
+
+
+def test_request_number_must_be_supplied_by_customer(tmp_path):
+    tools = make_tools(tmp_path)
+    database.add_change_request(tools.db_file, "R200", "2026-12-01")
+    reply = tools.run("check_request", {"number": 1}, customer("What happened?"))
+    assert "has not given that request number" in reply
+
+
+def test_approved_request_is_reported_from_database(tmp_path):
+    tools = make_tools(tmp_path)
+    number = database.add_change_request(tools.db_file, "R200", "2026-12-01")
+    database.approve_request(tools.db_file, number)
+    reply = tools.run(
+        "check_request", {"number": number}, customer(f"Request {number}")
+    )
+    assert "was approved" in reply

@@ -1,7 +1,9 @@
 # settings.py
 # Author: Nikita Lemeshenko
 
-DB_FILE = "spokewell.db"
+from pathlib import Path
+
+DB_FILE = Path(__file__).with_name("spokewell.db")
 MODEL_NAME = "granite4.1:3b"
 
 INSTRUCTIONS = """You are Jamie, a customer support assistant for Spokewell Bike Repair.

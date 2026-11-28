@@ -1,6 +1,8 @@
 # main.py
 # Author: Nikita Lemeshenko
 
+import sqlite3
+
 from agent import SupportChatbot
 from database import (
     all_repairs,
@@ -29,14 +31,18 @@ def main():
     print("Type a message, or type quit to stop.")
 
     while True:
-        user_message = input("You: ")
+        try:
+            user_message = input("You: ")
+        except (EOFError, KeyboardInterrupt):
+            print("\nChat ended. Pending requests remain waiting for staff.")
+            return
 
         if user_message.strip().lower() == "quit":
             break
 
         print(f"{bot.name}: {bot.respond(user_message)}")
 
-    print(f"Messages in this conversation: {len(bot.history)}")
+    print(f"Customer messages recorded: {bot.count_user_messages()}")
 
     print("\nStaff review")
 
@@ -48,14 +54,23 @@ def main():
             f"to pickup date {request['new_value']}"
         )
 
-        answer = input("Approve? yes or no: ").strip().lower()
+        try:
+            answer = input("Approve? yes or no: ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            print("\nStaff review ended. Undecided requests remain waiting.")
+            break
 
-        if answer == "yes":
-            print(approve_request(DB_FILE, number))
-        elif answer == "no":
-            print(reject_request(DB_FILE, number))
-        else:
-            print(f"Request {number} is still waiting.")
+        try:
+            if answer == "yes":
+                print(approve_request(DB_FILE, number))
+            elif answer == "no":
+                print(reject_request(DB_FILE, number))
+            else:
+                print(f"Request {number} is still waiting.")
+        except sqlite3.Error:
+            print(
+                f"Could not save the decision for request {number}. Please try again."
+            )
 
     print("\nCurrent pickup dates")
 
@@ -64,4 +79,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except sqlite3.Error:
+        print("The database is unavailable. Check the database file and try again.")
+        raise SystemExit(1)

@@ -1,8 +1,6 @@
 # tools.py
 # Author: Nikita Lemeshenko
 
-from datetime import date
-
 import database
 
 
@@ -65,14 +63,9 @@ class SpokewellTools:
             return "No repair with that ticket ID was found. IDs look like R200."
 
         try:
-            parsed_date = date.fromisoformat(new_date)
-        except ValueError:
-            return "Use a valid pickup date in YYYY-MM-DD format."
-
-        if parsed_date.isoformat() != new_date:
-            return "Use a valid pickup date in YYYY-MM-DD format."
-
-        number = database.add_change_request(self.db_file, ticket_id, new_date)
+            number = database.add_change_request(self.db_file, ticket_id, new_date)
+        except ValueError as error:
+            return str(error)
         return (
             f"Request {number} was sent to staff. The pickup date has not changed yet."
         )
@@ -102,6 +95,9 @@ class SpokewellTools:
 
     def run(self, name, arguments, history):
         """Run a tool only after its required checks pass."""
+        if not isinstance(arguments, dict):
+            return "The tool arguments must be an object with named values."
+
         if name == "look_up_repair":
             ticket_id = self.clean(arguments, "ticket_id")
 
@@ -153,7 +149,10 @@ class SpokewellTools:
 
     def clean(self, arguments, key):
         """Return an argument as stripped text, or empty text if missing."""
-        return str(arguments.get(key, "")).strip()
+        value = arguments.get(key)
+        if isinstance(value, bool) or not isinstance(value, (str, int)):
+            return ""
+        return str(value).strip()
 
     def words(self, text):
         """Normalize case and punctuation for whole-word matching."""
